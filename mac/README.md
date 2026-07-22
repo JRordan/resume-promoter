@@ -29,7 +29,22 @@ You don't need to be technical. The installer uses regular Mac dialog boxes.
 
 ## Install (one time)
 
-1. Open the folder you were given. Inside, go into `tools`, then `mac`.
+### Step 1: Move the unzipped folder out of Downloads
+
+If you downloaded a ZIP from GitHub, macOS flags it as coming from the internet. Before running the installer, **move the unzipped folder out of your Downloads folder** — otherwise macOS silently runs the installer from a temporary location and it can't find its own files (this is called "App Translocation").
+
+- In Finder, open your Downloads folder.
+- Drag the whole unzipped folder (for example `resume-promoter-main`) into your **Documents** folder (or anywhere outside Downloads).
+
+If you'd rather use Terminal (Applications → Utilities → Terminal), this command does the same thing without needing to move anything:
+
+```
+xattr -dr com.apple.quarantine ~/Downloads/resume-promoter-main
+```
+
+### Step 2: Run the installer
+
+1. Open the folder from Step 1. Go into the **mac** folder inside it.
 2. **Right-click** (or hold Control and click) the app icon called **Resume Promoter Setup**, then choose **Open**.
 
    > ⚠️ You must right-click and choose Open the *first* time. If you just double-click it, macOS will refuse with a security warning because the app isn't signed by Apple. After the first Open, double-click will work.
@@ -74,11 +89,11 @@ Now, in Finder, click any PDF in the Versions folder and press that combo to pro
 
 ## Uninstall
 
-1. Right-click **Resume Promoter Setup** in `tools/mac/` and choose **Open**.
+1. Right-click **Resume Promoter Setup** in the `mac/` folder and choose **Open**.
 2. Choose **Uninstall**.
 3. Confirm.
 
-This removes the right-click menu and settings file. **It does NOT delete your resume PDFs or your Resumes folder** — those are yours and are left alone. If you want to fully remove the tool afterwards, drag the whole folder that was given to you (the one containing `tools`) to the Trash.
+This removes the right-click menu and settings file. **It does NOT delete your resume PDFs or your Resumes folder** — those are yours and are left alone. If you want to fully remove the tool afterwards, drag the whole project folder to the Trash.
 
 ---
 
@@ -89,6 +104,9 @@ Just re-run the installer and choose **Install** again. Enter the new name or pi
 ---
 
 ## Troubleshooting
+
+**The installer error says "macOS moved this app to a temporary location…"**
+This is App Translocation — see Step 1 above. Move the whole project folder out of Downloads, or run the `xattr` command in Step 1, then re-open the app.
 
 **"Resume Promoter Setup can't be opened because Apple cannot check it for malicious software."**
 Right-click the app and choose **Open** instead of double-clicking. Confirm the warning. You only need to do this once.
@@ -103,7 +121,7 @@ Right-click the app and choose **Open** instead of double-clicking. Confirm the 
 Refresh the Finder window by pressing ⌘R, or close and reopen the folder.
 
 **The installer says "Setup script not found".**
-The setup app must stay inside the `tools/mac/` folder — it locates the installer relative to itself. If you moved it, put it back.
+The setup app must stay inside the `mac/` folder of the project — it locates the installer relative to itself. If you moved just the app, put it back inside the `mac/` folder.
 
 **Nothing happens when I right-click and choose the action.**
 Open the installer once and confirm the folder paths are correct. If your Versions folder is empty, add at least one PDF to it and try again.
