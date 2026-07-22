@@ -330,7 +330,8 @@ To bind a keyboard shortcut:
   System Settings → Keyboard → Keyboard Shortcuts → Services
   → Files and Folders → Promote Resume to Upload
 
-To uninstall later, re-run this installer and choose Uninstall."
+To uninstall later, run this in Terminal:
+  curl -fsSL https://raw.githubusercontent.com/JRordan/resume-promoter/main/uninstall.sh | bash"
             ;;
         Linux)
             local servicemenu_dir="$HOME/.local/share/kio/servicemenus"
@@ -364,7 +365,8 @@ Global fuzzel picker (add to ~/.config/hypr/custom/keybinds.lua):
   hl.bind(\"SUPER+SHIFT+R\", hl.dsp.exec_cmd(\"$SCRIPT_DIR/promote-picker\"),
       { description = \"Resumes: pick and promote\" })
 
-To uninstall later, re-run this installer and choose Uninstall."
+To uninstall later, run this in Terminal:
+  curl -fsSL https://raw.githubusercontent.com/JRordan/resume-promoter/main/uninstall.sh | bash"
             ;;
         *)
             gui_error "$TITLE" "Unsupported OS: $OS"
@@ -375,7 +377,20 @@ To uninstall later, re-run this installer and choose Uninstall."
 
 # -------- Main --------
 
-MODE="$(gui_choose_mode)"
+# Mode can be provided by --install / --uninstall (used by install.sh and
+# uninstall.sh when invoked via `curl | bash`, so the user isn't prompted
+# for the mode). With no argument, fall back to the interactive picker.
+MODE=""
+case "${1:-}" in
+    --install)   MODE="install" ;;
+    --uninstall) MODE="uninstall" ;;
+    "")          MODE="$(gui_choose_mode)" ;;
+    *)
+        echo "Usage: $0 [--install|--uninstall]" >&2
+        exit 2
+        ;;
+esac
+
 case "$MODE" in
     install)   do_install ;;
     uninstall)
