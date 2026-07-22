@@ -80,14 +80,27 @@ APPLESCRIPT
 
 gui_folder() {
     local title="$1" prompt="$2" default="$3"
+    # macOS `choose folder` errors out (returning empty via our on-error
+    # handler) if `default location` doesn't exist. Walk up to the nearest
+    # existing ancestor so the picker always opens somewhere valid.
     case "$OS" in
         Darwin)
+            local base="$default"
+            while [ -n "$base" ] && [ ! -d "$base" ]; do
+                local parent
+                parent="$(dirname "$base")"
+                [ "$parent" = "$base" ] && break
+                base="$parent"
+            done
+            [ -d "$base" ] || base="$HOME"
             osascript <<APPLESCRIPT
 try
-    set res to POSIX path of (choose folder with prompt "$prompt" default location POSIX file "$default")
+    set res to POSIX path of (choose folder with prompt "$prompt" default location POSIX file "$base")
     if res ends with "/" then set res to text 1 thru -2 of res
     return res
-on error
+on error errMsg number errNum
+    if errNum is -128 then return ""
+    log "gui_folder error " & errNum & ": " & errMsg
     return ""
 end try
 APPLESCRIPT
@@ -266,7 +279,31 @@ do_install() {
     fi
     FULL_NAME="$name_input"
 
-    parent_input="$(gui_folder "$TITLE" "Choose the folder to hold your resumes. A 'Versions' subfolder (for tailored PDFs) and an 'Upload' subfolder (for the file to attach) will be created inside it." "$DEFAULT_PARENT")"
+    # Shortcut past the folder picker when there's an obvious answer:
+    # the default already exists (reinstall), or it's the recommended
+    # ~/Documents/Resumes and we can create it on demand.
+    parent_input=""
+    if [ -d "$DEFAULT_PARENT" ]; then
+        if gui_yesno "$TITLE" "Use this folder for your resumes?
+
+$DEFAULT_PARENT
+
+(Click No to pick a different one.)"; then
+            parent_input="$DEFAULT_PARENT"
+        fi
+    elif [ "$DEFAULT_PARENT" = "$HOME/Documents/Resumes" ]; then
+        if gui_yesno "$TITLE" "Create and use this folder for your resumes?
+
+$DEFAULT_PARENT
+
+(Click No to pick a different location.)"; then
+            mkdir -p "$DEFAULT_PARENT"
+            parent_input="$DEFAULT_PARENT"
+        fi
+    fi
+    if [ -z "$parent_input" ]; then
+        parent_input="$(gui_folder "$TITLE" "Choose a folder to hold your resumes. Use the 'New Folder' button in the picker if you want to create one." "$DEFAULT_PARENT")"
+    fi
     if [ -z "$parent_input" ]; then
         gui_error "$TITLE" "Install cancelled — no folder chosen."
         exit 1
