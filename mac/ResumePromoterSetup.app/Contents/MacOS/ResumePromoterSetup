@@ -42,4 +42,15 @@ APPLESCRIPT
     exit 1
 fi
 
-exec "$SETUP"
+# Capture setup.sh output so silent failures are debuggable.
+# View later with: tail -80 ~/Library/Logs/ResumePromoterSetup.log
+LOG_FILE="$HOME/Library/Logs/ResumePromoterSetup.log"
+mkdir -p "$(dirname "$LOG_FILE")"
+{
+    echo "=== $(date) ==="
+    echo "MACOS_DIR=$MACOS_DIR"
+    echo "REPO_DIR=$REPO_DIR"
+    echo "SETUP=$SETUP"
+} >>"$LOG_FILE"
+
+exec "$SETUP" >>"$LOG_FILE" 2>&1

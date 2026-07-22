@@ -183,12 +183,13 @@ gui_choose_mode() {
         Darwin)
             osascript <<APPLESCRIPT
 try
-    tell me to activate
     set res to button returned of (display dialog "What would you like to do?" with title "$TITLE" buttons {"Cancel", "Uninstall", "Install"} default button "Install" cancel button "Cancel")
     if res is "Install" then return "install"
     if res is "Uninstall" then return "uninstall"
     return ""
-on error
+on error errMsg number errNum
+    if errNum is -128 then return ""
+    log "gui_choose_mode error " & errNum & ": " & errMsg
     return ""
 end try
 APPLESCRIPT
