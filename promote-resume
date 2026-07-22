@@ -1,0 +1,116 @@
+#!/usr/bin/env bash
+# Copy a resume from VERSIONS_DIR to UPLOAD_DIR, renaming it to
+# "<FULL_NAME> Resume.pdf" and clearing prior PDFs there. Cross-platform.
+#
+# Reads config from (first match wins):
+#   $RESUME_PROMOTER_CONFIG
+#   ${XDG_CONFIG_HOME:-$HOME/.config}/resume-promoter/config
+#   $REPO_ROOT/.promoter-config
+#
+# Config vars (all optional; defaults derived from script location):
+#   FULL_NAME     - person's full name (used as filename prefix)
+#   VERSIONS_DIR  - source folder of role-tailored PDFs
+#   UPLOAD_DIR    - staging folder that gets cleared and repopulated
+set -euo pipefail
+
+resolve_path() {
+    if command -v realpath >/dev/null 2>&1; then
+        realpath -- "$1"
+    else
+        perl -MCwd -e 'print Cwd::realpath($ARGV[0])' -- "$1"
+    fi
+}
+
+SCRIPT_DIR="$(cd "$(dirname "$(resolve_path "$0")")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+# Defaults (used if config is absent or leaves a var unset).
+FULL_NAME=""
+VERSIONS_DIR="$REPO_ROOT/Versions"
+UPLOAD_DIR="$REPO_ROOT/Upload"
+
+CONFIG_CANDIDATES=(
+    "${RESUME_PROMOTER_CONFIG:-}"
+    "${XDG_CONFIG_HOME:-$HOME/.config}/resume-promoter/config"
+    "$REPO_ROOT/.promoter-config"
+)
+for c in "${CONFIG_CANDIDATES[@]}"; do
+    if [ -n "$c" ] && [ -f "$c" ]; then
+        # shellcheck disable=SC1090
+        . "$c"
+        break
+    fi
+done
+
+notify() {
+    local title="$1" body="${2:-}"
+    if command -v notify-send >/dev/null 2>&1; then
+        notify-send -a "promote-resume" "$title" "$body" || true
+    elif command -v osascript >/dev/null 2>&1; then
+        osascript -e "display notification \"${body//\"/\\\"}\" with title \"${title//\"/\\\"}\"" >/dev/null 2>&1 || true
+    fi
+    echo "$title${body:+: $body}" >&2
+}
+
+is_pdf() {
+    case "$1" in
+        *.pdf|*.PDF|*.Pdf) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
+if [ -z "$FULL_NAME" ]; then
+    notify "Resume promoter not configured" "Run tools/setup.sh (or the setup app) to set your name."
+    exit 0
+fi
+TARGET_NAME="$FULL_NAME Resume.pdf"
+
+if [ "$#" -ne 1 ]; then
+    notify "Resume not promoted" "Select exactly one PDF (got $#)."
+    exit 0
+fi
+
+SRC="$1"
+
+if [ ! -f "$SRC" ]; then
+    notify "Resume not promoted" "Not a file: $SRC"
+    exit 0
+fi
+
+SRC_REAL="$(resolve_path "$SRC")"
+
+if [ ! -d "$VERSIONS_DIR" ]; then
+    notify "Resume not promoted" "Versions dir missing: $VERSIONS_DIR"
+    exit 0
+fi
+VERSIONS_REAL="$(resolve_path "$VERSIONS_DIR")"
+
+case "$SRC_REAL" in
+    "$VERSIONS_REAL"/*) ;;
+    *)
+        notify "Resume not promoted" "File is not inside $VERSIONS_DIR"
+        exit 0
+        ;;
+esac
+
+if ! is_pdf "$SRC_REAL"; then
+    notify "Resume not promoted" "Not a PDF: $SRC_REAL"
+    exit 0
+fi
+
+if [ ! -d "$UPLOAD_DIR" ]; then
+    notify "Resume not promoted" "Upload dir missing: $UPLOAD_DIR"
+    exit 0
+fi
+
+# Clear only PDFs directly inside UPLOAD_DIR; leave subdirs / other files alone.
+shopt -s nullglob
+for f in "$UPLOAD_DIR"/*.pdf "$UPLOAD_DIR"/*.PDF; do
+    rm -f -- "$f"
+done
+shopt -u nullglob
+
+DEST="$UPLOAD_DIR/$TARGET_NAME"
+cp -- "$SRC_REAL" "$DEST"
+
+notify "Resume promoted" "$(basename -- "$SRC_REAL") → $TARGET_NAME"

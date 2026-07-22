@@ -1,0 +1,68 @@
+#!/usr/bin/env bash
+# Fuzzy-pick a resume from VERSIONS_DIR and promote it. Cross-platform:
+# - Linux (Wayland): fuzzel --dmenu
+# - macOS: AppleScript `choose from list`
+# Shares config resolution with promote-resume (same lookup order).
+set -euo pipefail
+
+resolve_path() {
+    if command -v realpath >/dev/null 2>&1; then
+        realpath -- "$1"
+    else
+        perl -MCwd -e 'print Cwd::realpath($ARGV[0])' -- "$1"
+    fi
+}
+
+SCRIPT_DIR="$(cd "$(dirname "$(resolve_path "$0")")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+PROMOTE="$SCRIPT_DIR/promote-resume"
+
+VERSIONS_DIR="$REPO_ROOT/Versions"
+
+CONFIG_CANDIDATES=(
+    "${RESUME_PROMOTER_CONFIG:-}"
+    "${XDG_CONFIG_HOME:-$HOME/.config}/resume-promoter/config"
+    "$REPO_ROOT/.promoter-config"
+)
+for c in "${CONFIG_CANDIDATES[@]}"; do
+    if [ -n "$c" ] && [ -f "$c" ]; then
+        # shellcheck disable=SC1090
+        . "$c"
+        break
+    fi
+done
+
+if [ ! -d "$VERSIONS_DIR" ]; then
+    echo "Versions dir missing: $VERSIONS_DIR" >&2
+    exit 1
+fi
+
+list_roles() {
+    ( cd "$VERSIONS_DIR" && ls -1 *.pdf 2>/dev/null ) | sed 's/\.pdf$//'
+}
+
+pick_linux() {
+    list_roles | fuzzel --dmenu --prompt "Resume: " --lines 15
+}
+
+pick_mac() {
+    local roles applescript
+    roles="$(list_roles | awk 'BEGIN{ORS=""} NR>1{printf ","} {printf "\"%s\"", $0}')"
+    applescript='set roleList to {'"$roles"'}
+set chosen to choose from list roleList with prompt "Pick a resume" with title "Promote Resume"
+if chosen is false then return ""
+return item 1 of chosen'
+    osascript -e "$applescript"
+}
+
+case "$(uname -s)" in
+    Linux)  choice="$(pick_linux)" ;;
+    Darwin) choice="$(pick_mac)" ;;
+    *)      echo "Unsupported OS: $(uname -s)" >&2; exit 1 ;;
+esac
+
+if [ -z "${choice:-}" ]; then
+    exit 0
+fi
+
+exec "$PROMOTE" "$VERSIONS_DIR/${choice}.pdf"

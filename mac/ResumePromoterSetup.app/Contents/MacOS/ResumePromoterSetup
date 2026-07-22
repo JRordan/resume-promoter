@@ -1,0 +1,21 @@
+#!/bin/bash
+# Double-click launcher for setup.sh. Resolves the tools/ dir relative to
+# this .app bundle, which is expected to live at tools/mac/.
+set -e
+
+MACOS_DIR="$(cd "$(dirname "$0")" && pwd)"
+# MacOS/ -> Contents/ -> ResumePromoterSetup.app/ -> mac/ -> tools/
+TOOLS_DIR="$(cd "$MACOS_DIR/../../../.." && pwd)"
+SETUP="$TOOLS_DIR/setup.sh"
+
+if [ ! -x "$SETUP" ]; then
+    /usr/bin/osascript <<APPLESCRIPT
+display dialog "Setup script not found at:
+$SETUP
+
+Make sure this app stays inside tools/mac/ within the resume repo." with title "Resume Promoter Setup" buttons {"OK"} default button "OK" with icon stop
+APPLESCRIPT
+    exit 1
+fi
+
+exec "$SETUP"
