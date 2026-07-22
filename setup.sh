@@ -176,15 +176,17 @@ APPLESCRIPT
 
 gui_choose_mode() {
     # Returns "install", "uninstall", or empty string.
+    # Uses `display dialog` with buttons instead of `choose from list` —
+    # the latter does not accept `with title` (compile error) and is less
+    # reliable when the caller is a shell-script .app with no Cocoa lifecycle.
     case "$OS" in
         Darwin)
             osascript <<APPLESCRIPT
 try
-    set chosen to choose from list {"Install", "Uninstall"} with prompt "What would you like to do?" with title "$TITLE" default items {"Install"}
-    if chosen is false then return ""
-    set c to item 1 of chosen
-    if c is "Install" then return "install"
-    if c is "Uninstall" then return "uninstall"
+    tell me to activate
+    set res to button returned of (display dialog "What would you like to do?" with title "$TITLE" buttons {"Cancel", "Uninstall", "Install"} default button "Install" cancel button "Cancel")
+    if res is "Install" then return "install"
+    if res is "Uninstall" then return "uninstall"
     return ""
 on error
     return ""
